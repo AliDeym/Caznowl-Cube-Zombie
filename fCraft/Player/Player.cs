@@ -73,6 +73,7 @@ namespace fCraft {
         /// Deaf players can't hear anything. </summary>
         public bool IsDeaf { get; set; }
 
+        public string Mob = "steve";
 
         /// <summary> The world that the player is currently on. May be null.
         /// Use .JoinWorld() to make players teleport to another world. </summary>
@@ -910,6 +911,7 @@ namespace fCraft {
             LastUsedBlockType = type;
 
             Vector3I coordBelow = new Vector3I( coord.X, coord.Y, coord.Z - 1 );
+            Vector3I coordAbove = new Vector3I( coord.X, coord.Y, coord.Z + 1 );
 
             // check if player is frozen or too far away to legitimately place a block
             if( Info.IsFrozen ||
@@ -966,24 +968,88 @@ namespace fCraft {
             switch( canPlaceResult ) {
                 case CanPlaceResult.Allowed:
                     BlockUpdate blockUpdate;
-                    if( type == Block.Slab && coord.Z > 0 && map.GetBlock( coordBelow ) == Block.Slab ) {
+                    if (type == Block.Slab && coord.Z > 0 && map.GetBlock(coordBelow) == Block.Slab)
+                    {
                         // handle stair stacking
-                        blockUpdate = new BlockUpdate( this, coordBelow, Block.DoubleSlab );
-                        Info.ProcessBlockPlaced( (byte)Block.DoubleSlab );
-                        map.QueueUpdate( blockUpdate );
-                        RaisePlayerPlacedBlockEvent( this, World.Map, coordBelow, Block.Slab, Block.DoubleSlab, context );
-                        RevertBlockNow( coord );
-                        SendNow( Packet.MakeSetBlock( coordBelow, Block.DoubleSlab ) );
+                        blockUpdate = new BlockUpdate(this, coordBelow, Block.DoubleSlab);
+                        Info.ProcessBlockPlaced((byte)Block.DoubleSlab);
+                        map.QueueUpdate(blockUpdate);
+                        RaisePlayerPlacedBlockEvent(this, World.Map, coordBelow, Block.Slab, Block.DoubleSlab, context);
+                        RevertBlockNow(coord);
+                        SendNow(Packet.MakeSetBlock(coordBelow, Block.DoubleSlab));
 
-                    } else {
+                    }
+                    else if (type == Block.CobbleSlab && coord.Z > 0 && map.GetBlock(coordBelow) == Block.CobbleSlab)
+                    {
+                        // Handle cobble stacking
+                        blockUpdate = new BlockUpdate(this, coordBelow, Block.Cobblestone);
+                        Info.ProcessBlockPlaced((byte)Block.Cobblestone);
+                        map.QueueUpdate(blockUpdate);
+                        RaisePlayerPlacedBlockEvent(this, World.Map, coordBelow, Block.CobbleSlab, Block.Cobblestone, context);
+                        RevertBlockNow(coord);
+                        SendNow(Packet.MakeSetBlock(coordBelow, Block.Cobblestone));
+                    }
+                    else if (type == Block.Snow && coord.Z > 0 && map.GetBlock(coordBelow) == Block.Snow)
+                    {
+                        // Handle ice stacking
+                        blockUpdate = new BlockUpdate(this, coordBelow, Block.Ice);
+                        Info.ProcessBlockPlaced((byte)Block.Ice);
+                        map.QueueUpdate(blockUpdate);
+                        RaisePlayerPlacedBlockEvent(this, World.Map, coordBelow, Block.Snow, Block.Ice, context);
+                        RevertBlockNow(coord);
+                        SendNow(Packet.MakeSetBlock(coordBelow, Block.Ice));
+                    }
+                    else if (type == Block.Dirt && coord.Z > 0 && map.GetBlock(coordAbove) == Block.Air && action == ClickAction.Build)
+                    {
+                        // Grass growing
+                        blockUpdate = new BlockUpdate(this, coord, Block.Grass);
+                        Info.ProcessBlockPlaced((byte)Block.Grass);
+                        map.QueueUpdate(blockUpdate);
+                        RaisePlayerPlacedBlockEvent(this, World.Map, coord, Block.Dirt, Block.Grass, context);
+                        RevertBlockNow(coord);
+                        SendNow(Packet.MakeSetBlock(coord, Block.Grass));
+                        // Below -> Dirt
+                        if (map.GetBlock(coordBelow) == Block.Grass)
+                        {
+                            blockUpdate = new BlockUpdate(this, coordBelow, Block.Dirt);
+                            Info.ProcessBlockPlaced((byte)Block.Dirt);
+                            map.QueueUpdate(blockUpdate);
+                            RaisePlayerPlacedBlockEvent(this, World.Map, coord, Block.Grass, Block.Dirt, context);
+                            RevertBlockNow(coordBelow);
+                            SendNow(Packet.MakeSetBlock(coordBelow, Block.Dirt));
+                        }
+                    }
+                    else
+                    {
                         // handle normal blocks
-                        blockUpdate = new BlockUpdate( this, coord, type );
-                        Info.ProcessBlockPlaced( (byte)type );
-                        Block old = map.GetBlock( coord );
-                        map.QueueUpdate( blockUpdate );
-                        RaisePlayerPlacedBlockEvent( this, World.Map, coord, old, type, context );
-                        if( requiresUpdate || RelayAllUpdates ) {
-                            SendNow( Packet.MakeSetBlock( coord, type ) );
+                        blockUpdate = new BlockUpdate(this, coord, type);
+                        Info.ProcessBlockPlaced((byte)type);
+                        Block old = map.GetBlock(coord);
+                        map.QueueUpdate(blockUpdate);
+                        RaisePlayerPlacedBlockEvent(this, World.Map, coord, old, type, context);
+                        if (requiresUpdate || RelayAllUpdates)
+                        {
+                            SendNow(Packet.MakeSetBlock(coord, type));
+                        }
+                        if (map.GetBlock(coordBelow) == Block.Grass && action == ClickAction.Build)
+                        {
+                            // Grass -> Dirt function
+                            blockUpdate = new BlockUpdate(this, coordBelow, Block.Dirt);
+                            Info.ProcessBlockPlaced((byte)Block.Dirt);
+                            map.QueueUpdate(blockUpdate);
+                            RaisePlayerPlacedBlockEvent(this, World.Map, coord, Block.Grass, Block.Dirt, context);
+                            RevertBlockNow(coordBelow);
+                            SendNow(Packet.MakeSetBlock(coordBelow, Block.Dirt));
+                        }
+                        else if (map.GetBlock(coordBelow) == Block.Dirt && action == ClickAction.Delete)
+                        {
+                            // Dirt -> Grass function
+                            blockUpdate = new BlockUpdate(this, coordBelow, Block.Grass);
+                            Info.ProcessBlockPlaced((byte)Block.Grass);
+                            map.QueueUpdate(blockUpdate);
+                            RaisePlayerPlacedBlockEvent(this, World.Map, coord, Block.Dirt, Block.Grass, context);
+                            RevertBlockNow(coordBelow);
+                            SendNow(Packet.MakeSetBlock(coordBelow, Block.Grass));
                         }
                     }
                     break;
@@ -1713,6 +1779,103 @@ namespace fCraft {
             LastActiveTime = DateTime.UtcNow;
         }
 
+
+        const string CustomBlocksExtName = "CustomBlocks";
+        const int CustomBlocksExtVersion = 1;
+        const string BlockPermissionsExtName = "BlockPermissions";
+        const int BlockPermissionsExtVersion = 1;
+        const byte CustomBlocksLevel = 1;
+
+        // Note: if more levels are added, change UsesCustomBlocks from bool to int
+        bool UsesCustomBlocks = true;
+        bool SupportsBlockPermissions = true;
+        string ClientName { get; set; }
+
+        bool NegotiateProtocolExtension()
+        {
+            // write our ExtInfo and ExtEntry packets
+            writer.Write(Packet.MakeExtInfo(2).Bytes);
+            writer.Write(Packet.MakeExtEntry(CustomBlocksExtName, CustomBlocksExtVersion).Bytes);
+            writer.Write(Packet.MakeExtEntry(BlockPermissionsExtName, BlockPermissionsExtVersion).Bytes);
+
+            // Expect ExtInfo reply from the client
+            OpCode extInfoReply = reader.ReadOpCode();
+            //Logger.Log( "Expected: {0} / Received: {1}", OpCode.ExtInfo, extInfoReply );
+            if (extInfoReply != OpCode.ExtInfo)
+            {
+                Logger.Log(LogType.Warning, "Player {0} from {1}: Unexpected ExtInfo reply ({2})", Name, IP, extInfoReply);
+                return false;
+            }
+            ClientName = reader.ReadString();
+            int expectedEntries = reader.ReadInt16();
+
+            // wait for client to send its ExtEntries
+            bool sendCustomBlockPacket = false;
+            List<string> clientExts = new List<string>();
+            for (int i = 0; i < expectedEntries; i++)
+            {
+                // Expect ExtEntry replies (0 or more)
+                OpCode extEntryReply = reader.ReadOpCode();
+                //Logger.Log( "Expected: {0} / Received: {1}", OpCode.ExtEntry, extEntryReply );
+                if (extEntryReply != OpCode.ExtEntry)
+                {
+                    Logger.Log(LogType.Warning, "Player {0} from {1}: Unexpected ExtEntry reply ({2})", Name, IP, extInfoReply);
+                    return false;
+                }
+                string extName = reader.ReadString();
+                int extVersion = reader.ReadInt32();
+                if (extName == CustomBlocksExtName && extVersion == CustomBlocksExtVersion)
+                {
+                    // Hooray, client supports custom blocks! We still need to check support level.
+                    sendCustomBlockPacket = true;
+                    clientExts.Add(extName + " " + extVersion);
+                }
+                else if (extName == BlockPermissionsExtName && extVersion == BlockPermissionsExtVersion)
+                {
+                    SupportsBlockPermissions = true;
+                    clientExts.Add(extName + " " + extVersion);
+                }
+            }
+
+            // log client's capabilities
+            if (clientExts.Count > 0)
+            {
+                Logger.Log(LogType.ConsoleOutput, "Player {0} is using \"{1}\", supporting: {2}",
+                            Name,
+                            ClientName,
+                            clientExts.JoinToString(", "));
+            }
+
+            // if client also supports CustomBlockSupportLevel, figure out what level to use
+
+            // Send CustomBlockSupportLevel
+            writer.Write(Packet.MakeCustomBlockSupportLevel(CustomBlocksLevel).Bytes);
+
+            // Expect CustomBlockSupportLevel reply
+            OpCode customBlockSupportLevelReply = reader.ReadOpCode();
+            //Logger.Log( "Expected: {0} / Received: {1}", OpCode.CustomBlockSupportLevel, customBlockSupportLevelReply );
+            if (customBlockSupportLevelReply != OpCode.CustomBlockSupportLevel)
+            {
+                Logger.Log(LogType.Warning, "Player {0} from {1}: Unexpected CustomBlockSupportLevel reply ({2})",
+                                   Name,
+                                   IP,
+                                   customBlockSupportLevelReply);
+                return false;
+            }
+            byte clientLevel = reader.ReadByte();
+            UsesCustomBlocks = (clientLevel >= CustomBlocksLevel);
+            return true;
+        }
+
+        // For non-extended players, use appropriate substitution
+        public Packet ProcessOutgoingSetBlock(Packet packet)
+        {
+            if (packet.Bytes[7] > (byte)Map.MaxLegalBlockType && !UsesCustomBlocks)
+            {
+                packet.Bytes[7] = (byte)Map.GetFallbackBlock((Block)packet.Bytes[7]);
+            }
+            return packet;
+        }
 
         #region Kick
 

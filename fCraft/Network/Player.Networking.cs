@@ -444,8 +444,8 @@ namespace fCraft {
 
             // if a player is using InDev or SurvivalTest client, they may try to
             // place blocks that are not found in MC Classic. Convert them!
-            if( type > 49 ) {
-                type = MapDat.MapSurvivalTestBlock( type );
+            if( type > 68 ) {
+                type = MapDat.MapBlock(type);
             }
 
             Vector3I coords = new Vector3I( x, y, z );
@@ -532,7 +532,24 @@ namespace fCraft {
 
             string givenName = reader.ReadString();
             string verificationCode = reader.ReadString();
-            reader.ReadByte(); // unused
+            byte cpe = reader.ReadByte(); // unused
+            if (cpe == 0x42)
+            {
+                if (!NegotiateProtocolExtension())
+                {
+                    KickNow("Will not negotiate CPE protocol!", LeaveReason.ProtocolViolation);
+                    return false;
+                }
+                else
+                {
+                    UsesCustomBlocks = true;
+                }
+            }
+            else
+            {
+                KickNow("Requires a CPE compatible client!", fCraft.LeaveReason.InvalidOpCodeKick);
+                return false;
+            }
             BytesReceived += 131;
 
             bool isEmailAccount = false;
@@ -1055,10 +1072,22 @@ namespace fCraft {
             // Fetch compressed map copy
             byte[] buffer = new byte[1024];
             int mapBytesSent = 0;
-            byte[] blockData = map.GetCompressedCopy();
-            Logger.Log( LogType.Debug,
+            byte[] unGzipBlockData = map.Blocks.ToArray();
+            int count = 0;
+            foreach (var get in unGzipBlockData)
+            {
+                if ((int)get > (int)Map.MaxLegalBlockType)
+                {
+                    if (!this.UsesCustomBlocks)
+                    {
+                        unGzipBlockData[count] = (byte)Fallback.GetFallBack((Block)get);
+                    }
+                }
+            }
+            byte[] blockData = map.GetCompressedCopy(unGzipBlockData);
+            Logger.Log(LogType.Debug,
                         "Player.JoinWorldNow: Sending compressed map ({0} bytes) to {1}.",
-                        blockData.Length, Name );
+                        blockData.Length, Name);
 
             // Transfer the map copy
             while( mapBytesSent < blockData.Length ) {
@@ -1147,6 +1176,10 @@ namespace fCraft {
 #if DEBUG_NETWORKING
             Logger.Log( LogType.Trace, "to {0} [{1}] {2}", IP, outPacketNumber++, packet.OpCode );
 #endif
+            if (packet.OpCode == OpCode.SetBlockServer)
+            {
+                packet = ProcessOutgoingSetBlock(packet);
+            }
             writer.Write( packet.Bytes );
             BytesSent += packet.Bytes.Length;
         }
@@ -1155,6 +1188,10 @@ namespace fCraft {
         /// <summary> Send packet (thread-safe, async, priority queue).
         /// This is used for most packets (movement, chat, etc). </summary>
         public void Send( Packet packet ) {
+            if (packet.OpCode == OpCode.SetBlockServer)
+            {
+                packet = ProcessOutgoingSetBlock(packet);
+            }
             if( canQueue ) priorityOutputQueue.Enqueue( packet );
         }
 
@@ -1162,6 +1199,10 @@ namespace fCraft {
         /// <summary> Send packet (thread-safe, asynchronous, delayed queue).
         /// This is currently only used for block updates. </summary>
         public void SendLowPriority( Packet packet ) {
+            if (packet.OpCode == OpCode.SetBlockServer)
+            {
+                packet = ProcessOutgoingSetBlock(packet);
+            }
             if( canQueue ) outputQueue.Enqueue( packet );
         }
 
@@ -1353,6 +1394,10 @@ namespace fCraft {
                     }
                 } else {
                     entity = AddEntity( otherPlayer );
+                }
+                if (this.UsesCustomBlocks)
+                {
+                    this.Send(Packet.ChangeModel((byte)entity.Id, otherPlayer.Mob));
                 }
 
                 if( entity.Hidden ) {

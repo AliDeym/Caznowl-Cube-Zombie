@@ -36,6 +36,59 @@ namespace fCraft {
         /// <summary> Map volume, in terms of blocks. </summary>
         public readonly int Volume;
 
+        public const Block MaxLegalBlockType = Block.Obsidian; //Highest block before CPE
+
+        public const Block MaxCustomBlockType = Block.StoneBrick;
+        readonly static Block[] FallbackBlocks = new Block[256];
+
+        static void DefineFallbackBlocks()
+        {
+            for (int i = 0; i <= (int)Block.Obsidian; i++)
+            {
+                FallbackBlocks[i] = (Block)i;
+            }
+            FallbackBlocks[(int)Block.CobbleSlab] = Block.Slab;
+            FallbackBlocks[(int)Block.Rope] = Block.BrownMushroom;
+            FallbackBlocks[(int)Block.Sandstone] = Block.Sand;
+            FallbackBlocks[(int)Block.Snow] = Block.Air;
+            FallbackBlocks[(int)Block.Fire] = Block.StillLava;
+            FallbackBlocks[(int)Block.LightPink] = Block.Pink;
+            FallbackBlocks[(int)Block.DarkGreen] = Block.Green;
+            FallbackBlocks[(int)Block.Brown] = Block.Dirt;
+            FallbackBlocks[(int)Block.DarkBlue] = Block.Blue;
+            FallbackBlocks[(int)Block.Turquoise] = Block.Cyan;
+            FallbackBlocks[(int)Block.Ice] = Block.Glass;
+            FallbackBlocks[(int)Block.Tile] = Block.Iron;
+            FallbackBlocks[(int)Block.Magma] = Block.Obsidian;
+            FallbackBlocks[(int)Block.Pillar] = Block.White;
+            FallbackBlocks[(int)Block.Crate] = Block.Wood;
+            FallbackBlocks[(int)Block.StoneBrick] = Block.Stone;
+        }
+
+
+        public static Block GetFallbackBlock(Block block)
+        {
+            return FallbackBlocks[(int)block];
+        }
+
+
+        public unsafe byte[] GetFallbackMap()
+        {
+            byte[] translatedBlocks = (byte[])Blocks.Clone();
+            int volume = translatedBlocks.Length;
+            fixed (byte* ptr = translatedBlocks)
+            {
+                for (int i = 0; i < volume; i++)
+                {
+                    byte block = ptr[i];
+                    if (block > (byte)MaxLegalBlockType)
+                    {
+                        ptr[i] = (byte)FallbackBlocks[block];
+                    }
+                }
+            }
+            return translatedBlocks;
+        }
 
         /// <summary> Default spawning point on the map. A warning is logged when given coordinates are outside the map. </summary>
         public Position Spawn {
@@ -468,7 +521,7 @@ namespace fCraft {
             bool mapped = false;
             fixed( byte* ptr = Blocks ) {
                 for( int j = 0; j < Blocks.Length; j++ ) {
-                    if( ptr[j] > 49 ) {
+                    if( ptr[j] > 68 ) {
                         ptr[j] = mapping[ptr[j]];
                         mapped = true;
                     }
@@ -662,6 +715,45 @@ namespace fCraft {
 
             BlockNames["onyx"] = Block.Obsidian;
 
+            BlockNames["cobbleslab"] = Block.CobbleSlab;
+            BlockNames["cobblestoneslab"] = Block.CobbleSlab;
+            BlockNames["cslab"] = Block.CobbleSlab;
+
+            BlockNames["rope"] = Block.Rope;
+            BlockNames["ladder"] = Block.Rope;
+
+            BlockNames["sandstone"] = Block.Sandstone;
+
+            BlockNames["snow"] = Block.Snow;
+
+            BlockNames["fire"] = Block.Fire;
+
+            BlockNames["lightpink"] = Block.LightPink;
+
+            BlockNames["darkgreen"] = Block.DarkGreen;
+
+            BlockNames["brown"] = Block.Brown;
+
+            BlockNames["darkblue"] = Block.DarkBlue;
+
+            BlockNames["turquoise"] = Block.Turquoise;
+
+            BlockNames["ice"] = Block.Ice;
+
+            BlockNames["tile"] = Block.Tile;
+
+            BlockNames["magma"] = Block.Magma;
+
+            BlockNames["pillar"] = Block.Pillar;
+
+            BlockNames["crate"] = Block.Crate;
+
+            BlockNames["stonebrick"] = Block.StoneBrick;
+
+            BlockNames["hot_lava"] = Block.StillLava;
+
+            BlockNames["cold_water"] = Block.StillWater;
+
             // add WoM file hashes for edge textures
             BlockEdgeTextures[Block.Aqua] = "246870d16093ff02738b3d42084c6597c02fad36";
             BlockEdgeTextures[Block.Black] = "48dcdd9b63fe5ce1129baea990189653dc833d69";
@@ -798,6 +890,29 @@ namespace fCraft {
         }
         volatile byte[] compressedCopyCache;
 
+        /// <summary> Gets a compressed (GZip) copy of the map (raw block data with signed, 32bit, big-endian block count prepended).
+        /// If the map has not been modified since last GetCompressedCopy call, returns a cached copy. </summary>
+        public byte[] GetCompressedCopy(byte[] array)
+        {
+            byte[] currentCopy = null;
+            if (currentCopy == null)
+            {
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (GZipStream compressor = new GZipStream(ms, CompressionMode.Compress))
+                    {
+                        // convert block count to big-endian
+                        int convertedBlockCount = IPAddress.HostToNetworkOrder(array.Length);
+                        // write block count to gzip stream
+                        compressor.Write(BitConverter.GetBytes(convertedBlockCount), 0, 4);
+                        compressor.Write(array, 0, array.Length);
+                    }
+                    currentCopy = ms.ToArray();
+                    compressedCopyCache = currentCopy;
+                }
+            }
+            return currentCopy;
+        }
 
         /// <summary> Searches the map, from top to bottom, for the first appearance of a given block. </summary>
         /// <param name="x"> X coordinate (width). </param>

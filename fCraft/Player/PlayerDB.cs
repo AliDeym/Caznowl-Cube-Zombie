@@ -601,6 +601,86 @@ namespace fCraft {
             }
         }
 
+        /// <summary> Searches for player names starting with namePart.
+        /// If exactly one player matched, returns the corresponding PlayerInfo object.
+        /// If name format is incorrect, or if no matches were found, an appropriate message is printed to the player.
+        /// If multiple players were found matching the partialName, first 25 matches are printed. </summary>
+        /// <param name="player"> Player to print feedback to. </param>
+        /// <param name="partialName"> Partial or full player name. </param>
+        /// <returns> PlayerInfo object if one player was found. Null if no or multiple matches were found. </returns>
+        [CanBeNull]
+        public static PlayerInfo FindPlayerInfoOrPrintMatches([NotNull] Player player, [NotNull] string partialName)
+        {
+            if (player == null) throw new ArgumentNullException("player");
+            if (partialName == null) throw new ArgumentNullException("partialName");
+            CheckIfLoaded();
+
+            // If name starts with '!', return matches for online players only
+            if (partialName.Length > 1 && partialName[0] == '!')
+            {
+                partialName = partialName.Substring(1);
+                Player targetPlayer = Server.FindPlayerOrPrintMatches(player, partialName, SearchOptions.Default);
+                if (targetPlayer != null)
+                {
+                    return targetPlayer.Info;
+                }
+                else
+                {
+                    player.Message("No online players found matching \"{0}\"", partialName);
+                    return null;
+                }
+            }
+
+            // Repeat last-used player name
+            if (partialName == "-")
+            {
+                if (player.LastUsedPlayerName != null)
+                {
+                    partialName = player.LastUsedPlayerName;
+                }
+                else
+                {
+                    player.Message("Cannot repeat player name: you haven't used any names yet.");
+                    return null;
+                }
+            }
+
+            // Make sure player name is valid
+            /*if (!Player.ContainsValidCharacters(partialName))
+            {
+                player.MessageInvalidPlayerName(partialName);
+                return null;
+            }*/
+
+            // Search for exact matches first
+            PlayerInfo target = FindPlayerInfoExact(partialName);
+
+            // If no exact match was found, look for partial matches
+            if (target == null)
+            {
+                PlayerInfo[] targets = FindPlayers(partialName);
+                if (targets.Length == 0)
+                {
+                    // No matches
+                    player.MessageNoPlayer(partialName);
+                    return null;
+
+                }
+                else if (targets.Length > 1)
+                {
+                    // More than one match
+                    Array.Sort(targets, new PlayerInfoComparer(player));
+                    player.MessageManyMatches("player", targets.Take(25).ToArray());
+                    return null;
+
+                } // else: one match!
+                target = targets[0];
+            }
+
+            // If a single name has been found, set it as LastUsedPlayerName
+            player.LastUsedPlayerName = target.Name;
+            return target;
+        }
 
         // max number of matches printed by FindPlayerInfoOrPrintMatches
         const int MatchesToPrint = 25;

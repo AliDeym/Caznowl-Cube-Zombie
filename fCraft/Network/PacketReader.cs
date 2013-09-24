@@ -9,6 +9,10 @@ namespace fCraft {
         public PacketReader( [NotNull] Stream stream ) :
             base( stream ) { }
 
+        public OpCode ReadOpCode()
+        {
+            return (OpCode)ReadByte();
+        }
 
         public override short ReadInt16() {
             return IPAddress.NetworkToHostOrder( base.ReadInt16() );

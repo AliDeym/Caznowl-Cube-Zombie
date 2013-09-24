@@ -46,13 +46,54 @@ namespace fCraft {
 
             CommandManager.RegisterCommand( CdPatrol );
             CommandManager.RegisterCommand( CdSpecPatrol );
-
+            CommandManager.RegisterCommand(CdChangeModel);
             CommandManager.RegisterCommand( CdMute );
             CommandManager.RegisterCommand( CdUnmute );
 
             CommandManager.RegisterCommand( CdSpectate );
             CommandManager.RegisterCommand( CdUnspectate );
         }
+
+        #region ChangeModel
+        static readonly CommandDescriptor CdChangeModel = new CommandDescriptor
+        {
+            Name = "Model",
+            Category = CommandCategory.Moderation,
+            Permissions = new[] { Permission.Bring },
+            Usage = "&1/Model [Player] [Model]",
+            Help = "&1Change the Model of [Player]!\n" +
+            "&1Valid models: &echicken, blockid, creeper, croc, steve, pig, sheep, skeleton, spider, zombie!",
+            Handler = ModelHandler
+        };
+
+        static void ModelHandler(Player player, CommandReader cmd)
+        {
+            if (!cmd.HasNext)
+            {
+                CdChangeModel.PrintUsage(player);
+                return;
+            }
+            string ply = cmd.Next();
+            if (!cmd.HasNext)
+            {
+                CdChangeModel.PrintUsage(player);
+                return;
+            }
+            string nick = cmd.NextAll();
+            PlayerInfo p = PlayerDB.FindPlayerInfoOrPrintMatches(player, ply);
+            if (p == null)
+            {
+                return;
+            }
+            if (p.PlayerObject == null)
+            {
+                player.Message("This player is offline!");
+                return;
+            }
+            player.Message("Changed model of " + p.Name + " from " + p.PlayerObject.Mob + " to " + nick);
+            p.PlayerObject.Mob = nick;
+        }
+        #endregion
 
 
         #region Ban / Unban
