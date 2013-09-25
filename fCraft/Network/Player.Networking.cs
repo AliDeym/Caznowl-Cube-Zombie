@@ -15,6 +15,7 @@ using fCraft.Drawing;
 using fCraft.Events;
 using fCraft.MapConversion;
 using JetBrains.Annotations;
+using fCraft.Game;
 
 namespace fCraft {
     /// <summary> Represents a connection to a Minecraft client. Handles low-level interactions (e.g. networking). </summary>
@@ -857,14 +858,15 @@ namespace fCraft {
                     MessageNow( Chat.ReplaceTextKeywords( this, greetingLine ) );
                 }
             } else {
-                if( firstTime ) {
+                /*if( firstTime ) {
                     MessageNow( "Welcome to {0}", ConfigKey.ServerName.GetString() );
                 } else {
                     MessageNow( "Welcome back to {0}", ConfigKey.ServerName.GetString() );
                 }
 
                 MessageNow( "Your rank is {0}&S. Type &H/Help&S for help.",
-                            Info.Rank.ClassyName );
+                            Info.Rank.ClassyName );*/
+                BaseGame.ShowJoinMessage(this);
             }
 
             // A reminder for first-time users

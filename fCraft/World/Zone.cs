@@ -107,9 +107,9 @@ namespace fCraft {
                     } else {
                         Controller.ResetMinRank();
                     }
-                    Logger.Log( LogType.Error,
+                    /*Logger.Log( LogType.Error,
                                 "Zone: Error parsing zone definition: unknown rank \"{0}\". Permission reset to default ({1}).",
-                                header[7], Controller.MinRank.Name );
+                                header[7], Controller.MinRank.Name );*/
                 } else {
                     Controller.MinRank = buildRank;
                 }

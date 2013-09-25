@@ -188,6 +188,7 @@ namespace fCraft {
         /// <summary> Saves this map to a file in the default format (FCMv3). </summary>
         /// <returns> Whether the saving succeeded. </returns>
         public bool Save( [NotNull] string fileName ) {
+            if (Server.SaveLevels == false) return true;
             if( fileName == null ) throw new ArgumentNullException( "fileName" );
             string tempFileName = fileName + ".temp";
 

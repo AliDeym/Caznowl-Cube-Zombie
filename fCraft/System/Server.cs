@@ -19,6 +19,7 @@ using fCraft.Events;
 using fCraft.MapGeneration;
 using JetBrains.Annotations;
 using ThreadState = System.Threading.ThreadState;
+using fCraft.Game;
 
 namespace fCraft {
     /// <summary> Core of an fCraft server. Manages startup/shutdown, online player
@@ -44,6 +45,7 @@ namespace fCraft {
         [CanBeNull]
         public static Uri Uri { get; internal set; }
 
+        public static bool SaveLevels = true;
 
         internal static int MaxUploadSpeed, // set by Config.ApplyConfig
                             BlockUpdateThrottling; // used when there are no players in a world
@@ -242,6 +244,7 @@ namespace fCraft {
             if( !libraryInitialized ) {
                 throw new InvalidOperationException( "Server.InitLibrary must be called before Server.InitServer" );
             }
+            BaseGame.Init();
             RaiseEvent( Initializing );
 
             // Instantiate DeflateStream to make sure that libMonoPosix is present.
@@ -382,10 +385,10 @@ namespace fCraft {
             // Resolve internal and external IP addresses
             InternalIP = ( (IPEndPoint)listener.LocalEndpoint ).Address;
             IPAddress foundExternalIP = null;
-            for( int i = 0; i < 3 && foundExternalIP == null; i++ ) {
+            /*for( int i = 0; i < 3 && foundExternalIP == null; i++ ) {
                 Logger.Log( LogType.SystemActivity, "Resolving external IP address... (try {0})", i + 1 );
                 foundExternalIP = CheckExternalIP();
-            }
+            }*/
 
             if( foundExternalIP != null ) {
                 ExternalIP = foundExternalIP;
