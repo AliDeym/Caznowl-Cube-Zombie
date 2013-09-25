@@ -96,15 +96,14 @@ namespace fCraft.Game
 
         public static void AnnounceInfect(Player infectee, Player infected)
         {
-            Server.Message(infectee.ClassyName + " was munched on");
+            Server.Message(infected.ClassyName + " was munched on by " + infectee.ClassyName);
         }
 
         static void ConnectedHandler(object sender, PlayerEventArgs e)
         {
             if (RoundStarted)
             {
-                e.Player.Metadata["caznowl.zombie", "infected"] = true;
-                e.Player.Mob = "zombie";
+                InfectPlayer(e.Player);
                 e.Player.Message(Color.SysDefault + "You have been infected since you joined while a round was in progress.");
             }
             else
@@ -119,6 +118,10 @@ namespace fCraft.Game
         {
             e.Metadata["caznowl.zombie", "infected"] = true;
             e.Mob = "zombie";
+            e.Send(Packet.EnvSetColor(1, 255, 0, 0)); 
+            e.Send(Packet.EnvSetColor(2, 255, 0, 0));
+            e.Send(Packet.EnvSetColor(3, 255, 0, 0));
+            e.Send(Packet.EnvSetColor(4, 255, 0, 0)); 
         }
 
         static void ChatHandler(object sender, ChatSendingEventArgs e)
@@ -154,7 +157,7 @@ namespace fCraft.Game
         static void StartRound()
         {
             int i = Server.Players.Count();
-            RoundTime = RoundTime.Add(TimeSpan.FromMinutes(2));
+            RoundTime = RoundTime.Add(TimeSpan.FromSeconds(30));
             Server.Message(Color.Maroon + "The round has started!");
             RoundStarted = true;
             int amountOfPlayers = Server.Players.Length;
@@ -186,6 +189,10 @@ namespace fCraft.Game
             GenerateVariables();
             foreach (Player p in Server.Players.ToArray())
             {
+                p.Send(Packet.EnvSetColor(1, 128, 128, 128));
+                p.Send(Packet.EnvSetColor(2, 128, 128, 128));
+                p.Send(Packet.EnvSetColor(3, 128, 128, 128));
+                p.Send(Packet.EnvSetColor(4, 128, 128, 128)); 
                 p.Metadata["caznowl.zombie", "infected"] = false;
                 p.Mob = "steve";
                 AnnounceRoundInformation(p);
