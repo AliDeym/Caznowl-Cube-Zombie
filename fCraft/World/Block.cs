@@ -78,7 +78,7 @@ namespace fCraft
         Magma = 62,
         Pillar = 63,
         Crate = 64,
-        StoneBrick = 65,
+        StoneBrick = 65
     }
 }
 #pragma warning restore 1591
