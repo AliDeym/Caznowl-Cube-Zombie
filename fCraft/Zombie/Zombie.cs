@@ -24,11 +24,53 @@ namespace fCraft
             Player.Moved += MovedHandler;
             Player.Ready += ConnectedHandler;
             Chat.Sending += ChatHandler;
+            LoadAddons();
         }
 
         static void InitializedHandler(object sender, EventArgs e)
         {
             Commands.Init();
+        }
+
+        static void LoadAddons()
+        {
+            if (!Directory.Exists("addons/"))
+            {
+                Directory.CreateDirectory("addons/");
+            }
+            Logger.Log(LogType.ConsoleOutput, "[DLL]: Loading plugins...");
+            var dir = new DirectoryInfo("addons/").GetFiles().Where(x => x.Name.EndsWith(".dll")).ToArray();
+            foreach (var file in dir)
+            {
+                try
+                {
+                    Assembly asm;
+                    using (FileStream fs = File.Open("addons/" + file.Name, FileMode.Open))
+                    {
+                        using (MemoryStream ms = new MemoryStream())
+                        {
+                            byte[] buffer = new byte[1024];
+                            int read = 0;
+                            while ((read = fs.Read(buffer, 0, 1024)) > 0)
+                                ms.Write(buffer, 0, read);
+                            asm = Assembly.Load(ms.ToArray());
+                            ms.Close();
+                            ms.Dispose();
+                        }
+                        fs.Close();
+                        fs.Dispose();
+                    }
+                    var type = asm.GetType(file.Name.Replace(".dll", "") + ".Main");
+                    var meth = type.GetMethod("Init");
+                    var call = Activator.CreateInstance(type);
+                    meth.Invoke(call, null);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogType.Error, "The plugin: " + file.Name.Replace(".dll", "") + " doesn't seems to work with current version of Mapping, Exception: " + ex.ToString());
+                }
+            }
+            Logger.Log(LogType.ConsoleOutput, "[DLL]: Plugins loaded!");
         }
 
         static void StartRound()
@@ -101,43 +143,6 @@ namespace fCraft
 
         static void StartedHandler(object sender, EventArgs e)
         {
-            if (!Directory.Exists("addons/"))
-            {
-                Directory.CreateDirectory("addons/");
-            }
-            Logger.Log(LogType.ConsoleOutput, "[DLL]: Loading plugins...");
-            var dir = new DirectoryInfo("addons/").GetFiles().Where(x => x.Name.EndsWith(".dll")).ToArray();
-            foreach (var file in dir)
-            {
-                try
-                {
-                    Assembly asm;
-                    using (FileStream fs = File.Open("addons/" + file.Name, FileMode.Open))
-                    {
-                        using (MemoryStream ms = new MemoryStream())
-                        {
-                            byte[] buffer = new byte[1024];
-                            int read = 0;
-                            while ((read = fs.Read(buffer, 0, 1024)) > 0)
-                                ms.Write(buffer, 0, read);
-                            asm = Assembly.Load(ms.ToArray());
-                            ms.Close();
-                            ms.Dispose();
-                        }
-                        fs.Close();
-                        fs.Dispose();
-                    }
-                    var type = asm.GetType(file.Name.Replace(".dll", "") + ".Main");
-                    var meth = type.GetMethod("Init");
-                    var call = Activator.CreateInstance(type);
-                    meth.Invoke(call, null);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(LogType.Error, "The plugin: " + file.Name.Replace(".dll", "") + " doesn't seems to work with current version of Mapping, Exception: " + ex.ToString());
-                }
-            }
-            Logger.Log(LogType.ConsoleOutput, "[DLL]: Plugins loaded!");
             UnloadAll();
             var files = Directory.GetFiles("maps", "*.*").Where(name => !name.EndsWith(".lvlqonly") && !name.Equals(WorldManager.MainWorld.Name)).ToArray();
             int i = rand.Next(files.Length - 1);
