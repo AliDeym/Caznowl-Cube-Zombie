@@ -10,5 +10,6 @@ namespace fCraft
         public bool Infected = false;
         public bool EnabledEnv = true;
         public bool Referee = false;
+        public int NameID = 0;
     }
 }

@@ -24,12 +24,52 @@ namespace fCraft
             Player.Moved += MovedHandler;
             Player.Ready += ConnectedHandler;
             Chat.Sending += ChatHandler;
+            Player.Disconnected += ExtPlayerRemove;
+            Player.Ready += ExtPlayerSend;
             LoadAddons();
         }
 
         static void InitializedHandler(object sender, EventArgs e)
         {
             Commands.Init();
+        }
+
+        private static void ExtPlayerSend(object sender, PlayerEventArgs e)
+        {
+            List<int> TakenNameID = new List<int>();
+            foreach (var ply in Server.Players)
+            {
+                TakenNameID.Add(ply.NameID);
+            }
+            int final = 0;
+            for (int a = 255; a >= 0; a--)
+            {
+                if (!TakenNameID.Contains(a))
+                {
+                    final = a;
+                }
+            }
+            e.Player.NameID = final;
+
+            int permission = 100;
+
+            // Set permissions later {To Snowl}
+
+            foreach (var ply in Server.Players)
+            {
+                ply.Send(Packet.ExtAddPlayerName((short)final, e.Player.Name, e.Player.ClassyName, e.Player.Info.Rank.ClassyName, (byte)permission));
+            }
+        }
+
+        private static void ExtPlayerRemove(object sender, PlayerDisconnectedEventArgs e)
+        {
+            foreach (var ply in Server.Players)
+            {
+                if (ply != e.Player)
+                {
+                    ply.Send(Packet.ExtRemovePlayerName((short)e.Player.NameID));
+                }
+            }
         }
 
         static void LoadAddons()
